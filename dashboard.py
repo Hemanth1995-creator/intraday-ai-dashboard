@@ -65,7 +65,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🖼️ Branding
-st.image("https://upload.wikimedia.org/wikipedia/commons/5/56/Zerodha_logo.png", width=150)
+st.image("Iron man.jpeg", width=150)
 st.markdown("### Powered by IntradayAI 🚀")
 
 # 🔄 Lottie Animation
@@ -330,3 +330,4 @@ st.plotly_chart(fig_rsi, use_container_width=True)
 
 st.markdown("---")
 st.markdown("Made with ❤️ by Hemanth | Powered by Copilot | Version 1.0", unsafe_allow_html=True)
+
