@@ -13,6 +13,16 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+st.markdown('<img src="ironman.jpeg" class="fade-in" width="300">', unsafe_allow_html=True)
+
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.image("ironman.jpeg", width=150)
+
+with col2:
+    st.write("Welcome to your AI-powered intraday dashboard!")
+
 
 import time
 if "splash_shown" not in st.session_state:
@@ -154,13 +164,13 @@ with tab1:
     fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'], mode='markers', marker=dict(color='red', symbol='triangle-down'), name='SELL'))
 
     fig.update_layout(xaxis_rangeslider_visible=False, height=600)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=False)
 
     # 📉 RSI Chart
     fig_rsi = go.Figure()
     fig_rsi.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['RSI'], line=dict(color='purple'), name='RSI'))
     fig_rsi.update_layout(height=300)
-    st.plotly_chart(fig_rsi, use_container_width=True)
+    st.plotly_chart(fig_rsi, use_container_width=False)
 
 
 with tab2:
@@ -341,7 +351,7 @@ fig.update_layout(
     margin=dict(l=20, r=20, t=40, b=20)
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=False)
 
 # 📊 RSI Chart
 st.subheader("📉 RSI Indicator")
@@ -354,7 +364,7 @@ fig_rsi.add_trace(go.Scatter(
     name='RSI'
 ))
 fig_rsi.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
-st.plotly_chart(fig_rsi, use_container_width=True)
+st.plotly_chart(fig_rsi, use_container_width=False)
 
 st.markdown("---")
 st.markdown("Made with ❤️ by Hemanth | Powered by Copilot | Version 1.0", unsafe_allow_html=True)
