@@ -13,7 +13,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.markdown('<img src="ironman.jpeg" class="fade-in" width="300">', unsafe_allow_html=True)
+#st.markdown('<img src="ironman.jpeg" class="fade-in" width="300">', unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 2])
 
