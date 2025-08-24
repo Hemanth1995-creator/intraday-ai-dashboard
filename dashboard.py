@@ -1,30 +1,38 @@
+# 📦 Imports
 import streamlit as st
+import pandas as pd
+import yfinance as yf
+import random
+import time
+import plotly.graph_objects as go
+from streamlit_lottie import st_lottie
+import requests
+from streamlit_autorefresh import st_autorefresh
+from signal_logic import get_signal_data
+
+# 🎨 Page Setup
+st.set_page_config(page_title="Trade360 Dashboard", layout="wide")
+st.title("🚀 Trade360 Market Scanner")
+
+# 🖼️ Iron Man Splash Screen
 st.markdown("""
     <style>
     .fade-in {
         animation: fadeIn 2s ease-in forwards;
         opacity: 0;
     }
-
     @keyframes fadeIn {
-        to {
-            opacity: 1;
-        }
+        to { opacity: 1; }
     }
     </style>
 """, unsafe_allow_html=True)
-#st.markdown('<img src="ironman.jpeg" class="fade-in" width="300">', unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 2])
-
 with col1:
- st.image("ironman.jpeg", width=350)
-
+    st.image("ironman.jpeg", width=350)
 with col2:
     st.write("Welcome to your AI-powered intraday dashboard!")
 
-
-import time
 if "splash_shown" not in st.session_state:
     st.session_state.splash_shown = False
 
@@ -37,334 +45,172 @@ if not st.session_state.splash_shown:
     st.session_state.splash_shown = True
     st.rerun()
 
-import pandas as pd
-import plotly.graph_objects as go
-from streamlit_lottie import st_lottie
-import requests
-from signal_logic import get_signal_data
-
-# 📊 Load signal data early
-data = get_signal_data()
-
-# 🎨 Custom Styling
-st.set_page_config(page_title="Zerodha Signal Dashboard", layout="wide")
-
-# Inject CSS for background and font
-st.markdown("""
-    <style>
-        body {
-            background-color: #f5f7fa;
-            font-family: 'Segoe UI', sans-serif;
-        }
-        .stApp {
-            background-color: #f5f7fa;
-        }
-        .metric {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 10px;
-            margin: 5px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        .stTabs [data-baseweb="tab"] {
-            font-size: 16px;
-            color: #0a3d62;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# 🎯 Branded Sidebar
+# 🎯 Sidebar Branding
 st.sidebar.image("https://zerodha.com/static/images/logo.svg", width=150)
 st.sidebar.markdown("## 🚀 Zerodha Signal Engine")
 st.sidebar.markdown("Welcome, Hemanth 👋")
 
-def load_lottieurl(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
-
-lottie_url = "https://assets10.lottiefiles.com/packages/lf20_jcikwtux.json"
-lottie_json = load_lottieurl(lottie_url)
-
-st_lottie(lottie_json, speed=1, height=150, key="hello")
-st.markdown("## 🚀 Welcome to Zerodha Signal Engine")
-
-
-
-# 🎨 Styling
-st.markdown("""
-    <style>
-    .main {background-color: #f5f5f5;}
-    h1, h2, h3 {color: #2E86C1;}
-    .stMetric {background-color: #eaf2f8; border-radius: 10px;}
-    div[data-testid="stMetric"] > div {background-color: #eaf2f8; padding: 10px; border-radius: 10px;}
-    </style>
-""", unsafe_allow_html=True)
-
-# 🖼️ Branding
-st.image("ironman.jpeg", width=300)
-st.markdown("### Powered by IntradayAI 🚀")
-
-# 🔄 Lottie Animation
-def load_lottieurl(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
-
-lottie_trading = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_1pxqjqps.json")
-st_lottie(lottie_trading, height=300)
-
-# 🔁 Auto-refresh every 5 minutes
-from streamlit_autorefresh import st_autorefresh
-st_autorefresh(interval=300000, limit=100, key="refresh")
-
-# 🚦 Live Mode Toggle
+# ⚙️ Live Mode Toggle
 st.sidebar.header("⚙️ Settings")
 live_mode = st.sidebar.toggle("Live Trading Mode", value=False)
-
-# 🧠 Display Current Mode
 mode_status = "🟢 LIVE MODE" if live_mode else "🧪 SIMULATION MODE"
 st.sidebar.markdown(f"### {mode_status}")
 
+# 🔁 Auto-refresh
+st_autorefresh(interval=300000, limit=100, key="refresh")
+
+# 📊 Scope Toggle
+scope_mode = st.sidebar.radio("📊 Select Market Scope:", ["Top 3 Sectors", "NIFTY 50", "All Sectors"])
+st.write(f"🔍 Currently analyzing: **{scope_mode}**")
+
+# 🗂️ Sector Lookup
+sector_lookup = {
+    "NIFTY 50": ["RELIANCE", "INFY", "HDFCBANK", "TCS", "ICICIBANK", "SBIN", "ITC", "HINDUNILVR"],
+    "NIFTY BANK": ["ICICIBANK", "KOTAKBANK", "SBIN", "AXISBANK", "HDFCBANK"],
+    "NIFTY IT": ["TCS", "INFY", "HCLTECH", "TECHM", "WIPRO"],
+    "NIFTY FMCG": ["ITC", "HINDUNILVR", "DABUR", "BRITANNIA", "MARICO"],
+    "NIFTY PHARMA": ["SUNPHARMA", "CIPLA", "DIVISLAB", "DRREDDY", "AUROPHARMA"],
+    "NIFTY AUTO": ["TATAMOTORS", "HEROMOTOCO", "BAJAJ-AUTO", "EICHERMOT", "MARUTI"]
+}
+
+sector_symbols = {
+    "NIFTY BANK": "^NSEBANK",
+    "NIFTY IT": "^CNXIT",
+    "NIFTY FMCG": "^CNXFMCG",
+    "NIFTY PHARMA": "^CNXPHARMA",
+    "NIFTY AUTO": "^CNXAUTO"
+}
+
+# 📊 Sector Performance
+def get_sector_performance():
+    performance = {}
+    for sector, symbol in sector_symbols.items():
+        data = yf.download(symbol, period="2d", interval="1d", progress=False)
+        if len(data) >= 2:
+            today_close = float(data["Close"].iloc[-1])
+            yesterday_close = float(data["Close"].iloc[-2])
+            change = ((today_close - yesterday_close) / yesterday_close) * 100
+            performance[sector] = round(change, 2)
+    return performance
+
+st.subheader("📊 Sector Performance Today")
+sector_perf = get_sector_performance()
+sorted_perf = dict(sorted(sector_perf.items(), key=lambda x: x[1], reverse=True))
+#top_sectors = list(sorted_perf.keys())[:3]
+
+st.subheader("📊 Sector Performance Today")
+sector_perf = get_sector_performance()
+sorted_perf = dict(sorted(sector_perf.items(), key=lambda x: x[1], reverse=True))
+top_sectors = list(sorted_perf.keys())[:3]   # <-- FIXED
+
+if scope_mode == "Top 3 Sectors":
+    st.write("📌 Scanning stocks from top sectors:")
+    for sector in top_sectors:
+        st.markdown(f"- **{sector}**")
+elif scope_mode == "NIFTY 50":
+    st.write("📌 Scanning stocks from: NIFTY 50")
+else:
+    st.write("📌 Scanning stocks from all defined sectors")
+
+# 🧠 Build Stock Universe
+if scope_mode == "NIFTY 50":
+    selected_stocks = sector_lookup["NIFTY 50"]
+elif scope_mode == "All Sectors":
+    selected_stocks = []
+    for sector in sector_lookup:
+        if sector != "NIFTY 50":
+            selected_stocks.extend(sector_lookup[sector])
+elif scope_mode == "Top 3 Sectors":
+    selected_stocks = []
+    for sector in top_sectors:
+        if sector in sector_lookup:
+            selected_stocks.extend(sector_lookup[sector])
+
+st.write("🧮 Stocks being scanned:")
+st.markdown(", ".join(selected_stocks))
+
+# 💰 Dummy Price Fetcher
+def get_latest_price(stock):
+    return random.uniform(100, 500)
+
+# 📈 Signal Logic
+def run_signal_logic(stock):
+    price = get_latest_price(stock)
+    sma_20 = 300
+    if price > sma_20:
+        return "BUY"
+    elif price < sma_20:
+        return "SELL"
+    else:
+        return "HOLD"
+
+# 📈 Signal Analysis
+st.subheader("📈 Signal Analysis")
+signals = {}
+for stock in selected_stocks:
+    signal = run_signal_logic(stock)
+    signals[stock] = signal
+    if signal == "BUY":
+        st.success(f"{stock}: Buy Signal")
+    elif signal == "SELL":
+        st.error(f"{stock}: Sell Signal")
+    else:
+        st.info(f"{stock}: No clear signal")
+
+# 📊 Signal Summary Chart
+st.subheader("📊 Signal Summary")
+st.bar_chart(pd.Series(signals).value_counts())
 
 # 🗂️ Tabs
 tab1, tab2, tab3 = st.tabs(["📈 Signals", "📋 Trades", "📊 Strategy Audit"])
 
-
+# 📈 Tab 1: Signals
 with tab1:
-    # 📅 Time Filter
+    data = get_signal_data()
     st.subheader("🕒 Filter by Time Range")
     start_time = st.slider("Start Time", min_value=data.index.min().time(), max_value=data.index.max().time(), value=data.index.min().time())
     end_time = st.slider("End Time", min_value=data.index.min().time(), max_value=data.index.max().time(), value=data.index.max().time())
-
     filtered_data = data.between_time(start_time.strftime('%H:%M'), end_time.strftime('%H:%M'))
 
-    # 🔍 Signal Table
     st.subheader("🔍 Latest Signals")
     st.dataframe(filtered_data[['Close', 'EMA_20', 'EMA_50', 'RSI', 'Signal']].tail())
 
-    # 📈 Candlestick Chart
+    st.subheader("📊 Price Chart with EMA Signals")
     fig = go.Figure()
-    fig.add_trace(go.Candlestick(
-        x=filtered_data.index,
-        open=filtered_data['Open'],
-        high=filtered_data['High'],
-        low=filtered_data['Low'],
-        close=filtered_data['Close'],
-        name='Price'
-    ))
+    fig.add_trace(go.Candlestick(x=filtered_data.index, open=filtered_data['Open'], high=filtered_data['High'], low=filtered_data['Low'], close=filtered_data['Close'], name='Price'))
     fig.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['EMA_20'], line=dict(color='blue'), name='EMA 20'))
     fig.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['EMA_50'], line=dict(color='orange'), name='EMA 50'))
-
-    buy_signals = filtered_data[filtered_data['Signal'] == 'BUY']
-    sell_signals = filtered_data[filtered_data['Signal'] == 'SELL']
-    fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'], mode='markers', marker=dict(color='green', symbol='triangle-up'), name='BUY'))
-    fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'], mode='markers', marker=dict(color='red', symbol='triangle-down'), name='SELL'))
-
+    fig.add_trace(go.Scatter(x=filtered_data[filtered_data['Signal'] == 'BUY'].index, y=filtered_data[filtered_data['Signal'] == 'BUY']['Close'], mode='markers', marker=dict(color='green', symbol='triangle-up'), name='BUY'))
+    fig.add_trace(go.Scatter(x=filtered_data[filtered_data['Signal'] == 'SELL'].index, y=filtered_data[filtered_data['Signal'] == 'SELL']['Close'], mode='markers', marker=dict(color='red', symbol='triangle-down'), name='SELL'))
     fig.update_layout(xaxis_rangeslider_visible=False, height=600)
     st.plotly_chart(fig, use_container_width=False)
 
-    # 📉 RSI Chart
+    st.subheader("📉 RSI Indicator")
     fig_rsi = go.Figure()
     fig_rsi.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['RSI'], line=dict(color='purple'), name='RSI'))
     fig_rsi.update_layout(height=300)
     st.plotly_chart(fig_rsi, use_container_width=False)
 
-
+# 📋 Tab 2: Trades
 with tab2:
     st.subheader("📋 Trade Summary")
 
-    # Simulated trade log
     trade_log = [
         {"Time": "2025-08-23 09:20", "Signal": "BUY", "Price": 152.5, "Result": "+₹120"},
         {"Time": "2025-08-23 10:15", "Signal": "SELL", "Price": 154.2, "Result": "-₹80"},
-        {"Time": "2025-08-23 11:05", "Signal": "BUY", "Price": 153.0, "Result": "+₹60"},
+        {"Time": "2025-08-23 11:05", "Signal": "BUY", "Price": 153.0, "Result": "+₹60"}
     ]
 
     df_trades = pd.DataFrame(trade_log)
-
-    # Calculate metrics
     pnl_values = [int(t["Result"].replace("₹", "").replace("+", "").replace("-", "-")) for t in trade_log]
     total_pnl = sum(pnl_values)
     win_rate = round(100 * sum(1 for p in pnl_values if p > 0) / len(pnl_values), 2)
 
-    # Display metrics
     col1, col2 = st.columns(2)
     with col1:
         st.metric("💰 Total PnL", f"₹{total_pnl}", delta=f"{'↑' if total_pnl > 0 else '↓'}₹{abs(total_pnl)}")
     with col2:
         st.metric("✅ Win Rate", f"{win_rate}%", delta=f"{'↑' if win_rate > 50 else '↓'}")
 
-    # Display trade log
     st.dataframe(df_trades, use_container_width=True)
 
-with tab3:
-    st.subheader("📊 Strategy Audit Panel")
-
-    audit_data = filtered_data.copy() if 'filtered_data' in locals() else data.copy()
-
-    audit_data['Hour'] = audit_data.index.hour
-    signal_counts = audit_data.groupby(['Hour', 'Signal']).size().unstack(fill_value=0)
-    st.markdown("#### 🔥 Signal Distribution by Hour")
-    st.dataframe(signal_counts)
-
-    audit_data['Combo'] = audit_data.apply(
-        lambda row: f"EMA{int(row['EMA_20'] > row['EMA_50'])}_RSI{int(row['RSI'] > 50)}", axis=1
-    )
-    combo_perf = audit_data.groupby('Combo')['Signal'].value_counts().unstack(fill_value=0)
-    st.markdown("#### 🧠 Indicator Combo Breakdown")
-    st.dataframe(combo_perf)
-
-    total_signals = len(audit_data)
-    buy_signals = len(audit_data[audit_data['Signal'] == 'BUY'])
-    sell_signals = len(audit_data[audit_data['Signal'] == 'SELL'])
-    signal_score = round((buy_signals + sell_signals) / total_signals * 100, 2)
-
-    st.metric("📈 Signal Coverage", f"{signal_score}%")
-    st.metric("🟢 BUY Signals", f"{buy_signals}")
-    st.metric("🔴 SELL Signals", f"{sell_signals}")
-
-
-with col1:
-    st.metric("💰 Total PnL", f"₹{total_pnl}", delta=f"{'↑' if total_pnl > 0 else '↓'}₹{abs(total_pnl)}")
-with col2:
-    st.metric("✅ Win Rate", f"{win_rate}%", delta=f"{'↑' if win_rate > 50 else '↓'}")
-
-
-    # Use filtered_data from tab1 if available
-    audit_data = filtered_data.copy() if 'filtered_data' in locals() else data.copy()
-
-    # Time-based signal heatmap
-    audit_data['Hour'] = audit_data.index.hour
-    signal_counts = audit_data.groupby(['Hour', 'Signal']).size().unstack(fill_value=0)
-
-    st.markdown("#### 🔥 Signal Distribution by Hour")
-    st.dataframe(signal_counts)
-
-    # Indicator combo performance (simplified)
-    audit_data['Combo'] = audit_data.apply(
-        lambda row: f"EMA{int(row['EMA_20'] > row['EMA_50'])}_RSI{int(row['RSI'] > 50)}", axis=1
-    )
-    combo_perf = audit_data.groupby('Combo')['Signal'].value_counts().unstack(fill_value=0)
-
-    st.markdown("#### 🧠 Indicator Combo Breakdown")
-    st.dataframe(combo_perf)
-
-    # Adaptive scoring (mocked for now)
-    total_signals = len(audit_data)
-    buy_signals = len(audit_data[audit_data['Signal'] == 'BUY'])
-    sell_signals = len(audit_data[audit_data['Signal'] == 'SELL'])
-    signal_score = round((buy_signals + sell_signals) / total_signals * 100, 2)
-
-    st.metric("📈 Signal Coverage", f"{signal_score}%")
-    st.metric("🟢 BUY Signals", f"{buy_signals}")
-    st.metric("🔴 SELL Signals", f"{sell_signals}")
-
-    # Simulated trade log (replace with real trades if live_mode is True)
-    trade_log = [
-        {"Time": "2025-08-23 09:20", "Signal": "BUY", "Price": 152.5, "Result": "+₹120"},
-        {"Time": "2025-08-23 10:15", "Signal": "SELL", "Price": 154.2, "Result": "-₹80"},
-        {"Time": "2025-08-23 11:05", "Signal": "BUY", "Price": 153.0, "Result": "+₹60"},
-    ]
-
-    df_trades = pd.DataFrame(trade_log)
-
-    # Calculate metrics
-    pnl_values = [int(t["Result"].replace("₹", "").replace("+", "").replace("-", "-")) for t in trade_log]
-    total_pnl = sum(pnl_values)
-    win_rate = round(100 * sum(1 for p in pnl_values if p > 0) / len(pnl_values), 2)
-
-    # Display metrics
-    st.metric("💰 Total PnL", f"₹{total_pnl}")
-    st.metric("✅ Win Rate", f"{win_rate}%")
-
-    # Display trade log
-    st.dataframe(df_trades, use_container_width=True)
-
-# Page setup
-st.set_page_config(page_title="Intraday AI Dashboard", layout="wide")
-st.title("📈 Intraday AI Trading Dashboard")
-
-from signal_logic import get_signal_data
-# Load signal data
-data = get_signal_data()
-
-# 📍 Latest Signals Table
-st.subheader("🔍 Latest Signals")
-st.dataframe(data[['Close', 'EMA_20', 'EMA_50', 'RSI', 'Signal']].tail())
-
-# 📈 Candlestick Chart with EMA and Signal Markers
-st.subheader("📊 Price Chart with EMA Signals")
-
-fig = go.Figure()
-
-# Candlestick
-fig.add_trace(go.Candlestick(
-    x=data.index,
-    open=data['Open'],
-    high=data['High'],
-    low=data['Low'],
-    close=data['Close'],
-    name='Price'
-))
-
-# EMA Overlays
-fig.add_trace(go.Scatter(
-    x=data.index,
-    y=data['EMA_20'],
-    line=dict(color='blue', width=1),
-    name='EMA 20'
-))
-
-fig.add_trace(go.Scatter(
-    x=data.index,
-    y=data['EMA_50'],
-    line=dict(color='orange', width=1),
-    name='EMA 50'
-))
-
-# Signal Markers
-buy_signals = data[data['Signal'] == 'BUY']
-sell_signals = data[data['Signal'] == 'SELL']
-
-fig.add_trace(go.Scatter(
-    x=buy_signals.index,
-    y=buy_signals['Close'],
-    mode='markers',
-    marker=dict(color='green', size=8, symbol='triangle-up'),
-    name='BUY'
-))
-
-fig.add_trace(go.Scatter(
-    x=sell_signals.index,
-    y=sell_signals['Close'],
-    mode='markers',
-    marker=dict(color='red', size=8, symbol='triangle-down'),
-    name='SELL'
-))
-
-fig.update_layout(
-    xaxis_rangeslider_visible=False,
-    height=600,
-    margin=dict(l=20, r=20, t=40, b=20)
-)
-
-st.plotly_chart(fig, use_container_width=False)
-
-# 📊 RSI Chart
-st.subheader("📉 RSI Indicator")
-
-fig_rsi = go.Figure()
-fig_rsi.add_trace(go.Scatter(
-    x=data.index,
-    y=data['RSI'],
-    line=dict(color='purple'),
-    name='RSI'
-))
-fig_rsi.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
-st.plotly_chart(fig_rsi, use_container_width=False)
-
-st.markdown("---")
-st.markdown("Made with ❤️ by Hemanth | Powered by Copilot | Version 1.0", unsafe_allow_html=True)
