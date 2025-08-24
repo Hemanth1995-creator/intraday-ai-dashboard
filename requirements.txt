@@ -4,3 +4,4 @@ plotly
 requests
 streamlit-lottie
 streamlit-autorefresh
+yfinance
