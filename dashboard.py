@@ -1,4 +1,18 @@
+
+import time
 import streamlit as st
+if "splash_shown" not in st.session_state:
+    st.session_state.splash_shown = False
+
+if not st.session_state.splash_shown:
+    st.image("ironman.jpeg", width=250)
+    st.markdown("## 🚀 Intraday AI Signal Engine")
+    st.markdown("Crafted by Hemanth | Powered by Copilot")
+    st.markdown("Loading your trading cockpit...")
+    time.sleep(3)
+    st.session_state.splash_shown = True
+    st.rerun()
+
 import pandas as pd
 import plotly.graph_objects as go
 from streamlit_lottie import st_lottie
@@ -330,4 +344,3 @@ st.plotly_chart(fig_rsi, use_container_width=True)
 
 st.markdown("---")
 st.markdown("Made with ❤️ by Hemanth | Powered by Copilot | Version 1.0", unsafe_allow_html=True)
-
