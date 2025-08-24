@@ -1,4 +1,3 @@
-
 import time
 import streamlit as st
 if "splash_shown" not in st.session_state:

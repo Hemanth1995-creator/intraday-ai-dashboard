@@ -5,4 +5,4 @@ requests
 streamlit-lottie
 streamlit-autorefresh
 yfinance
-
+ta
