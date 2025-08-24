@@ -18,7 +18,7 @@ st.markdown('<img src="ironman.jpeg" class="fade-in" width="300">', unsafe_allow
 col1, col2 = st.columns([1, 2])
 
 with col1:
-    st.image("ironman.jpeg", width=150)
+ st.image("ironman.jpeg", width=350)
 
 with col2:
     st.write("Welcome to your AI-powered intraday dashboard!")
@@ -103,7 +103,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🖼️ Branding
-st.image("ironman.jpeg", width=150)
+st.image("ironman.jpeg", width=300)
 st.markdown("### Powered by IntradayAI 🚀")
 
 # 🔄 Lottie Animation
