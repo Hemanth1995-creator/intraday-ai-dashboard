@@ -1,10 +1,25 @@
-import time
 import streamlit as st
+st.markdown("""
+    <style>
+    .fade-in {
+        animation: fadeIn 2s ease-in forwards;
+        opacity: 0;
+    }
+
+    @keyframes fadeIn {
+        to {
+            opacity: 1;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+import time
 if "splash_shown" not in st.session_state:
     st.session_state.splash_shown = False
 
 if not st.session_state.splash_shown:
-    st.image("ironman.jpeg", width=250)
+    st.markdown('<img src="ironman.jpeg" class="fade-in" width="350">', unsafe_allow_html=True)
     st.markdown("## 🚀 Intraday AI Signal Engine")
     st.markdown("Crafted by Hemanth | Powered by Copilot")
     st.markdown("Loading your trading cockpit...")
@@ -78,7 +93,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🖼️ Branding
-st.image("Iron man.jpeg", width=150)
+st.image("ironman.jpeg", width=150)
 st.markdown("### Powered by IntradayAI 🚀")
 
 # 🔄 Lottie Animation
