@@ -7,6 +7,7 @@ import time
 import plotly.graph_objects as go
 from streamlit_lottie import st_lottie
 import requests
+from kite_auth import get_kite_session
 from streamlit_autorefresh import st_autorefresh
 from signal_logic import get_signal_data
 
@@ -47,6 +48,7 @@ if not st.session_state.splash_shown:
 
 # 🎯 Sidebar Branding
 st.sidebar.image("https://zerodha.com/static/images/logo.svg", width=150)
+max_price = st.sidebar.slider("Max Stock Price ₹", min_value=100, max_value=2000, value=500)
 st.sidebar.markdown("## 🚀 Zerodha Signal Engine")
 st.sidebar.markdown("Welcome, Hemanth 👋")
 
@@ -129,33 +131,93 @@ elif scope_mode == "Top 3 Sectors":
 st.write("🧮 Stocks being scanned:")
 st.markdown(", ".join(selected_stocks))
 
-# 💰 Dummy Price Fetcher
-def get_latest_price(stock):
-    return random.uniform(100, 500)
+# 💰 Live Price Fetcher (Kite API)
+def get_latest_price(kite, stock):
+    try:
+        instrument = f"NSE:{stock}"
+        quote = kite.quote(instrument)
+        return quote[instrument]["last_price"]
+    except Exception as e:
+        st.warning(f"⚠️ Price fetch failed for {stock}: {e}")
+        return None
+    
+# 📜 Historical Data Fetcher (Kite API)
+def get_historical_data(kite, stock, interval="5minute", days=5):
+    try:
+        from datetime import datetime, timedelta
+        instrument = f"NSE:{stock}"
+        to_date = datetime.now()
+        from_date = to_date - timedelta(days=days)
+        data = kite.historical_data(instrument_token=kite.ltp([instrument])[instrument]['instrument_token'],
+                                    from_date=from_date,
+                                    to_date=to_date,
+                                    interval=interval)
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.warning(f"⚠️ Historical fetch failed for {stock}: {e}")
+        return pd.DataFrame()
 
-# 📈 Signal Logic
-def run_signal_logic(stock):
-    price = get_latest_price(stock)
-    sma_20 = 300
-    if price > sma_20:
-        return "BUY"
-    elif price < sma_20:
-        return "SELL"
+
+# 📈 Signal Logic with SMA/EMA
+def run_signal_logic(kite, stock):
+    df = get_historical_data(kite, stock)
+    if df.empty:
+        return None, None  # no data
+
+    df["SMA_20"] = df["close"].rolling(20).mean()
+    df["EMA_50"] = df["close"].ewm(span=50, adjust=False).mean()
+
+    latest_price = df["close"].iloc[-1]
+    sma_20 = df["SMA_20"].iloc[-1]
+    ema_50 = df["EMA_50"].iloc[-1]
+
+    if latest_price > sma_20 and sma_20 > ema_50:
+        return "BUY", latest_price
+    elif latest_price < sma_20 and sma_20 < ema_50:
+        return "SELL", latest_price
     else:
-        return "HOLD"
+        return "HOLD", latest_price
+
+
 
 # 📈 Signal Analysis
 st.subheader("📈 Signal Analysis")
 signals = {}
-for stock in selected_stocks:
-    signal = run_signal_logic(stock)
-    signals[stock] = signal
+
+# Filter stocks based on max price and actionable signals
+data = get_signal_data()
+
+affordable_data = data[(data['Close'] < max_price) & (data['Signal'].isin(['BUY', 'SELL']))]
+
+for index, row in affordable_data.iterrows():
+    # Skip rows without a valid symbol
+    if 'Symbol' not in row or pd.isna(row['Symbol']):
+        st.warning(f"⚠️ Skipping row at {index}: No symbol found")
+        continue
+
+    symbol = row['Symbol']
+    signal = row['Signal']
+    price = row['Close']
+
+    st.info(f"{symbol} @ ₹{round(price, 2)} → Signal: {signal}")
+
+    if live_mode and signal in ["BUY", "SELL"]:
+        try:
+            order = execute_trade(kite, symbol, signal)
+            st.success(f"✅ Order placed: {order['order_id']}")
+        except Exception as e:
+            st.error(f"❌ Trade failed: {e}")
+
+
+    signals[symbol] = signal
+
     if signal == "BUY":
-        st.success(f"{stock}: Buy Signal")
+        st.success(f"{stock}: Buy Signal (₹{round(price,2)})")
     elif signal == "SELL":
-        st.error(f"{stock}: Sell Signal")
+        st.error(f"{stock}: Sell Signal (₹{round(price,2)})")
     else:
-        st.info(f"{stock}: No clear signal")
+        st.info(f"{stock}: Hold (₹{round(price,2)})")
+
 
 # 📊 Signal Summary Chart
 st.subheader("📊 Signal Summary")
@@ -174,6 +236,37 @@ with tab1:
 
     st.subheader("🔍 Latest Signals")
     st.dataframe(filtered_data[['Close', 'EMA_20', 'EMA_50', 'RSI', 'Signal']].tail())
+    
+    kite = get_kite_session()
+
+st.subheader("📈 Signal Execution")
+for index, row in filtered_data.iterrows():
+    if 'Symbol' not in row or pd.isna(row['Symbol']):
+        st.warning(f"⚠️ Skipping row at {index}: No symbol found")
+        continue
+
+    symbol = row['Symbol']
+    signal = row['Signal']
+
+    if signal == "BUY":
+        st.success(f"{symbol} @ {index}: Buy Signal")
+        if live_mode:
+            try:
+                order = execute_trade(kite, symbol, signal)
+                st.write(f"🟢 Order placed: {order['order_id']}")
+            except Exception as e:
+                st.error(f"❌ Trade failed: {e}")
+
+    elif signal == "SELL":
+        st.error(f"{symbol} @ {index}: Sell Signal")
+        if live_mode:
+            try:
+                order = execute_trade(kite, symbol, signal)
+                st.write(f"🔴 Order placed: {order['order_id']}")
+            except Exception as e:
+                st.error(f"❌ Trade failed: {e}")
+
+   
 
     st.subheader("📊 Price Chart with EMA Signals")
     fig = go.Figure()
@@ -183,13 +276,13 @@ with tab1:
     fig.add_trace(go.Scatter(x=filtered_data[filtered_data['Signal'] == 'BUY'].index, y=filtered_data[filtered_data['Signal'] == 'BUY']['Close'], mode='markers', marker=dict(color='green', symbol='triangle-up'), name='BUY'))
     fig.add_trace(go.Scatter(x=filtered_data[filtered_data['Signal'] == 'SELL'].index, y=filtered_data[filtered_data['Signal'] == 'SELL']['Close'], mode='markers', marker=dict(color='red', symbol='triangle-down'), name='SELL'))
     fig.update_layout(xaxis_rangeslider_visible=False, height=600)
-    st.plotly_chart(fig, use_container_width=False)
+    st.plotly_chart(fig, use_container_width=False, key=f"price_chart_{index}")
 
     st.subheader("📉 RSI Indicator")
     fig_rsi = go.Figure()
     fig_rsi.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['RSI'], line=dict(color='purple'), name='RSI'))
     fig_rsi.update_layout(height=300)
-    st.plotly_chart(fig_rsi, use_container_width=False)
+    st.plotly_chart(fig_rsi, use_container_width=False, key=f"rsi_chart_{index}")
 
 # 📋 Tab 2: Trades
 with tab2:
